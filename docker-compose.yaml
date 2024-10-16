@@ -1,0 +1,29 @@
+services:
+    mongo:
+      image: mongo
+      restart: always
+      environment:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: example
+      ports:
+          - '27017:27017'
+
+    mosquitto:
+        image: eclipse-mosquitto
+        container_name: mosquitto
+        volumes:
+            - ./config:/mosquitto/config
+            - ./data:/mosquitto/data
+            - ./log:/mosquitto/log
+        ports:
+            - 11014:11014
+            - 9001:9001
+        stdin_open: true 
+        tty: true
+    
+    app-web:
+        build:
+            context: .
+            # dockerfile: .
+        ports:
+            - '10014:8501'

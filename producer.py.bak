@@ -1,0 +1,56 @@
+import pika
+import json
+
+# การตั้งค่า RabbitMQ
+rabbitmq_host = 'localhost'  # หรือ IP ที่ใช้เชื่อมต่อ
+queue_name = 'sensor_data'
+
+# สร้าง credentials สำหรับเชื่อมต่อ
+credentials = pika.PlainCredentials('mikelopster', 'password')
+
+# เชื่อมต่อกับ RabbitMQ
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host=rabbitmq_host, port=11014, credentials=credentials)
+)
+channel = connection.channel()
+
+# สร้าง Queue หากยังไม่มี
+channel.queue_declare(queue=queue_name)
+
+def publish_message(device_id, temperature, humidity):
+    # สร้าง payload ข้อมูล
+    message = {
+        'DeviceID': device_id,
+        'Temperature': temperature,
+        'Humidity': humidity
+    }
+    # แปลงข้อมูลเป็น JSON
+    message_json = json.dumps(message)
+    
+    # ส่งข้อมูลไปยัง Queue
+    channel.basic_publish(exchange='',
+                          routing_key=queue_name,
+                          body=message_json)
+    print(f" [x] Sent {message_json}")
+
+# ตัวอย่างการใช้งาน
+if __name__ == '__main__':
+    import random
+    import time
+    
+    print('Producer runing...')
+
+    while True:
+        # สุ่มค่าข้อมูลตัวอย่าง
+        device_id = 100014
+        temperature = round(random.uniform(15, 50), 2)
+        humidity = random.randint(30, 70)
+        
+        # ส่งข้อมูลไปยัง RabbitMQ
+        publish_message(device_id, temperature, humidity)
+        
+        # พัก 1 วินาทีก่อนส่งข้อมูลครั้งถัดไป
+        time.sleep(1)
+
+# ปิดการเชื่อมต่อ (หากต้องการหยุด)
+# connection.close()

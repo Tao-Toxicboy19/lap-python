@@ -1,0 +1,48 @@
+import pika
+import json
+from pymongo import MongoClient
+
+# การตั้งค่า RabbitMQ
+rabbitmq_host = 'localhost'  # หรือ IP ที่ใช้เชื่อมต่อ
+queue_name = 'sensor_data'
+
+# การตั้งค่า MongoDB
+url = "mongodb://root:example@localhost:27017/examdb?authSource=admin"
+
+try:
+    client = MongoClient(url)
+    db = client["examdb"]
+    collection = db["examdata"]
+    client.admin.command('ping')
+    print("Connected to MongoDB successfully!")
+except Exception as e:
+    print(f"Failed to connect to MongoDB: {e}")
+
+# สร้าง credentials สำหรับเชื่อมต่อ
+credentials = pika.PlainCredentials('mikelopster', 'password')
+
+# เชื่อมต่อกับ RabbitMQ
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host=rabbitmq_host, port=11014, credentials=credentials)
+)
+channel = connection.channel()
+
+# สร้าง Queue หากยังไม่มี
+channel.queue_declare(queue=queue_name)
+
+def callback(ch, method, properties, body):
+    message = json.loads(body)
+    print(f" [x] Received {message}")
+    # แทรกข้อมูลลง MongoDB
+    try:
+        collection.insert_one(message)
+        print(" [x] Inserted message into MongoDB successfully!")
+    except Exception as e:
+        print(f"Failed to insert message into MongoDB: {e}")
+
+# กำหนด callback function สำหรับรับข้อความจาก Queue
+channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
+
+print('Consumer runing...')
+print(' [*] Waiting for messages. To exit press CTRL+C')
+channel.start_consuming()
